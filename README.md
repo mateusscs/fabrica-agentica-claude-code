@@ -84,4 +84,4 @@ python scripts/converter.py original .claude
 ## Créditos
 
 Fábrica original: [André Menegassi](https://github.com/andremenegassi/fabrica-software-agentica).
-Adaptação para Claude Code: Mateus Cunha.
+Adaptação para Claude Code: Mateus Cunha e Daniel dos Santos.
