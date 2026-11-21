@@ -21,7 +21,7 @@ O Claude Code tem equivalentes diretos para quase todos os mecanismos da fábric
 | Bloqueio global de merge/force push | `permissions.deny` em `.claude/settings.json` |
 | Spec Kit para opencode | `specify init --integration claude`, que instala as skills `speckit-*` com os mesmos nomes usados nos prompts |
 | `model` por papel | `model` no cabeçalho: Desenvolvedor `sonnet`, Revisor `opus`, QA `haiku` (pares produtor/verificador com modelos diferentes) |
-| *(novo)* registro no Slack | Hook `SubagentStop` [`slack_notify.py`](.claude/hooks/slack_notify.py), que lê o bloco `STATUS` do subagente e posta no canal |
+| *(novo)* registro no Slack | Hook `PostToolUse` da ferramenta Agent [`slack_notify.py`](.claude/hooks/slack_notify.py): quando cada subagente devolve o resultado ao orquestrador, o hook lê o bloco `STATUS` e posta no canal |
 
 ## Arquitetura
 
@@ -30,7 +30,7 @@ flowchart TB
     H["Humano<br/><small>aprova spec · faz merge</small>"]
     O["Orquestrador<br/><small>sessão principal do Claude Code</small>"]
     G{{"fabrica_guard.py<br/><small>PreToolUse · política por agente</small>"}}
-    S[["Slack #fabrica-software<br/><small>SubagentStop</small>"]]
+    S[["Slack #fabrica-software<br/><small>PostToolUse(Agent)</small>"]]
     A["Analista"] & R["Arquiteto"] & T["Criador de Tarefas"] & D["Desenvolvedor"] & V["Revisor"] & Q["QA"]
 
     H <-->|"Checkpoints 1 e 2"| O

@@ -79,7 +79,7 @@ def responder(decisao: str, motivo: str):
 
 
 def main():
-    evento = json.load(sys.stdin)
+    evento = json.loads(sys.stdin.buffer.read().decode("utf-8-sig"))
     raiz = raiz_projeto(evento)
     if os.environ.get("FABRICA_HOOK_DEBUG"):
         with open(raiz / ".claude" / "fabrica" / "hook-debug.jsonl", "a", encoding="utf-8") as f:

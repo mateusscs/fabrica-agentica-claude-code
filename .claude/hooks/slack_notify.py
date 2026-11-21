@@ -1,9 +1,11 @@
-"""Hook SubagentStop da Fábrica de Software: registra no Slack a finalização de cada subagente.
+"""Hook da Fábrica de Software: registra no Slack a finalização de cada subagente.
 
 Requisito do Projeto Final 4: "Cada subagente deve registrar no Slack a finalização da sua tarefa."
-Lê o bloco de status (STATUS/PARECER/ARTEFATOS/TESTES/BLOQUEIOS/PRÓXIMO) que o subagente devolveu e envia
-para um Incoming Webhook do Slack. A URL vem da variável SLACK_WEBHOOK_URL (defina em
-.claude/settings.local.json, bloco "env", que não vai para o Git). Sem a variável, só grava o log local.
+Roda no PostToolUse da ferramenta Agent (quando o subagente devolve o resultado ao orquestrador), que recebe a
+resposta final completa. Também aceita SubagentStop como alternativa. Lê o bloco de status
+(STATUS/PARECER/ARTEFATOS/TESTES/BLOQUEIOS/PRÓXIMO) e envia para um Incoming Webhook do Slack. A URL vem da
+variável SLACK_WEBHOOK_URL (defina em .claude/settings.local.json, bloco "env", que não vai para o Git).
+Sem a variável, só grava o log local.
 """
 import json
 import os
@@ -32,7 +34,22 @@ def texto_da_mensagem(msg) -> str:
     return "\n".join(b.get("text", "") for b in conteudo if isinstance(b, dict) and b.get("type") == "text")
 
 
+def textos(valor) -> list[str]:
+    """Coleta os campos de texto de uma resposta de ferramenta, qualquer que seja o formato (str, dict ou lista)."""
+    if isinstance(valor, str):
+        return [valor]
+    if isinstance(valor, list):
+        return [t for item in valor for t in textos(item)]
+    if isinstance(valor, dict):
+        if isinstance(valor.get("text"), str):
+            return [valor["text"]]
+        return [t for chave in ("content", "result", "output") if chave in valor for t in textos(valor[chave])]
+    return []
+
+
 def ultima_resposta(evento: dict) -> str:
+    if evento.get("hook_event_name") == "PostToolUse":
+        return "\n".join(textos(evento.get("tool_response")))
     if evento.get("last_assistant_message"):
         return evento["last_assistant_message"]
     transcript = evento.get("agent_transcript_path") or evento.get("transcript_path")
@@ -55,7 +72,7 @@ def bloco_status(texto: str) -> dict:
     """Extrai o bloco de status; ARTEFATOS pode ocupar várias linhas."""
     campos, atual = {}, None
     for linha in texto.splitlines():
-        linha = linha.strip().strip("`")
+        linha = linha.strip().strip("`").replace("**", "").lstrip("-• ").strip()
         m = re.match(rf"^({'|'.join(CAMPOS)}):\s*(.*)$", linha)
         if m:
             atual = m.group(1)
@@ -94,8 +111,11 @@ def montar_mensagem(agente: str, campos: dict, branch: str) -> str:
 
 
 def main():
-    evento = json.load(sys.stdin)
-    agente = evento.get("agent_type") or "subagente"
+    evento = json.loads(sys.stdin.buffer.read().decode("utf-8-sig"))
+    if evento.get("hook_event_name") == "PostToolUse":
+        agente = (evento.get("tool_input") or {}).get("subagent_type") or "subagente"
+    else:
+        agente = evento.get("agent_type") or "subagente"
     if agente not in NOMES:
         return  # só os subagentes da fábrica são registrados
     raiz = Path(os.environ.get("CLAUDE_PROJECT_DIR") or evento.get("cwd") or os.getcwd())
